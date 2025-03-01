@@ -49,16 +49,16 @@ impl Serialize for FrameHeader {
 
 pub enum RepoOp {
     Create { cid: Cid, path: String },
-    Update { cid: Cid, path: String },
-    Delete { path: String },
+    Update { cid: Cid, path: String, prev: Cid },
+    Delete { path: String, prev: Cid },
 }
 
 impl Into<sync::subscribe_repos::RepoOp> for RepoOp {
     fn into(self) -> sync::subscribe_repos::RepoOp {
         let (action, cid, path) = match self {
             RepoOp::Create { cid, path } => ("create", Some(cid), path),
-            RepoOp::Update { cid, path } => ("update", Some(cid), path),
-            RepoOp::Delete { path } => ("delete", None, path),
+            RepoOp::Update { cid, path, prev: _prev } => ("update", Some(cid), path),
+            RepoOp::Delete { path, prev: _prev } => ("delete", None, path),
         };
 
         sync::subscribe_repos::RepoOpData {

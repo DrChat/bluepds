@@ -244,6 +244,13 @@ async fn apply_writes(
                 let key = format!("{}/{}", object.collection.as_str(), object.rkey);
                 let uri = format!("at://{}/{}", user.did(), key);
 
+                let prev = repo
+                    .tree()
+                    .get(&key)
+                    .await
+                    .context("failed to search MST")?
+                    .context("previous record does not exist")?;
+
                 let (b, c) = repo
                     .update_raw(&key, &object.value)
                     .await
@@ -256,6 +263,7 @@ async fn apply_writes(
                 ops.push(RepoOp::Update {
                     cid: c,
                     path: key.clone(),
+                    prev,
                 });
 
                 res.push(OutputResultsItem::UpdateResult(Box::new(
@@ -272,7 +280,17 @@ async fn apply_writes(
             InputWritesItem::Delete(object) => {
                 let key = format!("{}/{}", object.collection.as_str(), object.rkey);
 
-                ops.push(RepoOp::Delete { path: key.clone() });
+                let prev = repo
+                    .tree()
+                    .get(&key)
+                    .await
+                    .context("failed to search MST")?
+                    .context("previous record does not exist")?;
+
+                ops.push(RepoOp::Delete {
+                    path: key.clone(),
+                    prev,
+                });
 
                 res.push(OutputResultsItem::DeleteResult(Box::new(
                     apply_writes::DeleteResultData {}.into(),
@@ -345,7 +363,7 @@ async fn apply_writes(
     let did_str = user.did();
     for op in &ops {
         match op {
-            RepoOp::Update { path, .. } | RepoOp::Delete { path } => {
+            RepoOp::Update { path, .. } | RepoOp::Delete { path, .. } => {
                 // FIXME: This may cause issues if a user deletes more than one record referencing the same blob.
                 sqlx::query!(
                     r#"UPDATE blob_ref SET record = NULL WHERE did = ? AND record = ?"#,
