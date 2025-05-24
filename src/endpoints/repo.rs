@@ -698,7 +698,7 @@ async fn get_record(
     } else {
         return Err(Error::with_status(
             StatusCode::NOT_FOUND,
-            anyhow!("could not find the requested record"),
+            anyhow!("could not find record {uri}"),
         ));
     }
 }
